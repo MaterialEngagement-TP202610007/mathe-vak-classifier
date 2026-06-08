@@ -1,0 +1,34 @@
+{
+  "Visual": {
+    "precision": 1.0,
+    "recall": 0.9827586206896551,
+    "f1-score": 0.991304347826087,
+    "support": 58.0
+  },
+  "Auditivo": {
+    "precision": 0.9782608695652174,
+    "recall": 0.9782608695652174,
+    "f1-score": 0.9782608695652174,
+    "support": 46.0
+  },
+  "Kinestesico": {
+    "precision": 0.972972972972973,
+    "recall": 1.0,
+    "f1-score": 0.9863013698630136,
+    "support": 36.0
+  },
+  "accuracy": 0.9857142857142858,
+  "macro avg": {
+    "precision": 0.9837446141793968,
+    "recall": 0.9870064967516242,
+    "f1-score": 0.985288862418106,
+    "support": 140.0
+  },
+  "weighted avg": {
+    "precision": 0.9859073359073359,
+    "recall": 0.9857142857142858,
+    "f1-score": 0.9857321534927251,
+    "support": 140.0
+  },
+  "accuracy_global": 0.9857142857142858
+}

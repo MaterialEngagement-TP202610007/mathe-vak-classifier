@@ -1,0 +1,19 @@
+# Material Engagement - Pipeline ML (Clasificacion VAK)
+# Lenguaje principal: Python 3.10+
+
+xgboost>=2.0
+scikit-learn>=1.4
+pandas>=2.0
+numpy>=1.26
+joblib>=1.3
+
+# Persistencia / Integracion
+psycopg2-binary>=2.9
+boto3>=1.34
+python-dotenv>=1.0
+
+# Visualizacion y exploracion
+matplotlib>=3.8
+seaborn>=0.13
+imbalanced-learn>=0.12
+jupyter>=1.0

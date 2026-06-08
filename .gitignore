@@ -1,0 +1,15 @@
+# Python / venv
+ml_model/venv/
+__pycache__/
+*.pyc
+
+# Entorno (credenciales) - nunca subir
+ml_model/.env
+.env
+
+# Notebooks
+.ipynb_checkpoints/
+
+# macOS / herramientas
+.DS_Store
+.claude/
