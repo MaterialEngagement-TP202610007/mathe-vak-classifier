@@ -7,6 +7,10 @@ __pycache__/
 ml_model/.env
 .env
 
+# Lambda deployment artifacts
+ml_model/lambda/package/
+ml_model/lambda/lambda_deployment.zip
+
 # Notebooks
 .ipynb_checkpoints/
 

@@ -10,7 +10,7 @@ Sube:
   - models/model_metadata.json
 
 Configuracion via .env:
-  AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, S3_BUCKET, S3_PREFIX
+  AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN, AWS_REGION, S3_BUCKET, S3_PREFIX
 
 Uso:
     python upload_to_s3.py [--create-bucket]
@@ -87,7 +87,13 @@ def main():
         print(f"[ERROR] Faltan artefactos en models/: {missing}. Ejecuta train.py primero.")
         sys.exit(1)
 
-    s3 = boto3.client("s3", region_name=REGION)
+    s3 = boto3.client(
+        "s3",
+        region_name=REGION,
+        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+        aws_session_token=os.environ.get("AWS_SESSION_TOKEN"),
+    )
     ensure_bucket(s3, args.create_bucket)
 
     for artifact in ARTIFACTS:
