@@ -19,7 +19,7 @@ from xgboost import XGBClassifier
 from preprocess import VAK_CLASSES, load_dataset, preprocess_training
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(HERE, "data", "dataset_simulado.csv")
+DATA_PATH = os.path.join(HERE, "data", "simulated_dataset.csv")
 MODELS_DIR = os.path.join(HERE, "models")
 
 MODEL_VERSION = os.environ.get("MODEL_VERSION", "v1")

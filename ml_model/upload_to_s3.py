@@ -1,18 +1,10 @@
-"""
-upload_to_s3.py
-===============
-Sube los artefactos del modelo a AWS S3 (Notion - Fase 3, tarea 1).
+"""Upload the model artifacts to AWS S3.
 
-Sube:
-  - models/vak_model_<version>.pkl
-  - models/scaler.pkl
-  - models/label_encoder.pkl
-  - models/model_metadata.json
+Uploads vak_model_<version>.pkl, scaler.pkl, label_encoder.pkl and
+model_metadata.json from models/. Configured via .env: AWS_ACCESS_KEY_ID,
+AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN, AWS_REGION, S3_BUCKET, S3_PREFIX.
 
-Configuracion via .env:
-  AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN, AWS_REGION, S3_BUCKET, S3_PREFIX
-
-Uso:
+Usage:
     python upload_to_s3.py [--create-bucket]
 """
 
@@ -47,14 +39,14 @@ def ensure_bucket(s3, create: bool):
 
     try:
         s3.head_bucket(Bucket=BUCKET)
-        print(f"Bucket '{BUCKET}' encontrado.")
+        print(f"Bucket '{BUCKET}' found.")
         return
     except botocore.exceptions.ClientError:
         if not create:
-            print(f"[ERROR] El bucket '{BUCKET}' no existe. Usa --create-bucket para crearlo.")
+            print(f"[ERROR] Bucket '{BUCKET}' does not exist. Use --create-bucket to create it.")
             sys.exit(1)
 
-    print(f"Creando bucket '{BUCKET}' en {REGION}...")
+    print(f"Creating bucket '{BUCKET}' in {REGION}...")
     if REGION == "us-east-1":
         s3.create_bucket(Bucket=BUCKET)
     else:
@@ -62,29 +54,27 @@ def ensure_bucket(s3, create: bool):
             Bucket=BUCKET,
             CreateBucketConfiguration={"LocationConstraint": REGION},
         )
-    print("Bucket creado.")
+    print("Bucket created.")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Sube artefactos del modelo a S3.")
-    parser.add_argument("--create-bucket", action="store_true", help="Crea el bucket si no existe.")
+    parser = argparse.ArgumentParser(description="Upload model artifacts to S3.")
+    parser.add_argument("--create-bucket", action="store_true", help="Create the bucket if missing.")
     args = parser.parse_args()
 
     try:
         import boto3
     except ImportError:
-        print("[ERROR] boto3 no esta instalado. pip install boto3")
+        print("[ERROR] boto3 is not installed. pip install boto3")
         sys.exit(1)
 
-    # Validar credenciales basicas.
     if not os.environ.get("AWS_ACCESS_KEY_ID") or not os.environ.get("AWS_SECRET_ACCESS_KEY"):
-        print("[ERROR] Faltan credenciales AWS en .env (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY).")
+        print("[ERROR] Missing AWS credentials in .env (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY).")
         sys.exit(1)
 
-    # Validar que existan los artefactos.
     missing = [a for a in ARTIFACTS if not os.path.exists(os.path.join(MODELS_DIR, a))]
     if missing:
-        print(f"[ERROR] Faltan artefactos en models/: {missing}. Ejecuta train.py primero.")
+        print(f"[ERROR] Missing artifacts in models/: {missing}. Run train.py first.")
         sys.exit(1)
 
     s3 = boto3.client(
@@ -99,10 +89,10 @@ def main():
     for artifact in ARTIFACTS:
         local = os.path.join(MODELS_DIR, artifact)
         key = f"{PREFIX}/{artifact}" if PREFIX else artifact
-        print(f"Subiendo {artifact} -> s3://{BUCKET}/{key}")
+        print(f"Uploading {artifact} -> s3://{BUCKET}/{key}")
         s3.upload_file(local, BUCKET, key)
 
-    print("\nUpload completado. Configura en Lambda:")
+    print("\nUpload complete. Set in Lambda:")
     print(f"  S3_BUCKET={BUCKET}")
     print(f"  S3_PREFIX={PREFIX}")
     print(f"  MODEL_FILE=vak_model_{MODEL_VERSION}.pkl")

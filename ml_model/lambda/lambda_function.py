@@ -29,7 +29,7 @@ NUMERIC_FEATURES = [
     "total_backtracks",
 ]
 
-VAK_DISPLAY = ["Visual", "Auditivo", "Kinestesico"]
+VAK_CLASSES = ["Visual", "Auditory", "Kinesthetic"]
 
 CLEAR_MARGIN = 0.30
 MIXED_MARGIN = 0.12
@@ -70,17 +70,17 @@ def build_response(proba) -> dict:
     top, second = int(order[0]), int(order[1])
 
     gap = proba[top] - proba[second]
-    tipo = "claro" if gap >= CLEAR_MARGIN else "tendencia" if gap >= MIXED_MARGIN else "mixto"
+    profile = "clear" if gap >= CLEAR_MARGIN else "tendency" if gap >= MIXED_MARGIN else "mixed"
 
-    confianza = {VAK_DISPLAY[i]: round(float(proba[i]) * 100, 2) for i in range(len(VAK_DISPLAY))}
+    confidence = {VAK_CLASSES[i]: round(float(proba[i]) * 100, 2) for i in range(len(VAK_CLASSES))}
     return {
-        "estilo_predominante": VAK_DISPLAY[top],
-        "estilo_secundario": VAK_DISPLAY[second],
-        "confianza": confianza,
-        "confianza_predominante": confianza[VAK_DISPLAY[top]],
-        "tipo_perfil": tipo,
-        "es_perfil_mixto": tipo == "mixto",
-        "clasificador_tipo": "xgboost",
+        "predominant_style": VAK_CLASSES[top],
+        "secondary_style": VAK_CLASSES[second],
+        "confidence": confidence,
+        "predominant_confidence": confidence[VAK_CLASSES[top]],
+        "profile_type": profile,
+        "is_mixed_profile": profile == "mixed",
+        "classifier_type": "xgboost",
     }
 
 
@@ -104,16 +104,16 @@ def _response(status, payload):
 def lambda_handler(event, context):
     try:
         _load_artifacts()
-    except Exception as exc:  # noqa: BLE001
-        return _response(503, {"error": "modelo_no_disponible", "detail": str(exc)})
+    except Exception as exc:
+        return _response(503, {"error": "model_unavailable", "detail": str(exc)})
 
     try:
         raw = _parse_body(event)
         missing = [c for c in NUMERIC_FEATURES if c not in raw]
         if missing:
-            return _response(400, {"error": "features_faltantes", "missing": missing})
+            return _response(400, {"error": "missing_features", "missing": missing})
 
         proba = _MODEL.predict_proba(build_feature_vector(raw))[0]
         return _response(200, build_response(proba))
-    except Exception as exc:  # noqa: BLE001
-        return _response(500, {"error": "error_prediccion", "detail": str(exc)})
+    except Exception as exc:
+        return _response(500, {"error": "prediction_error", "detail": str(exc)})

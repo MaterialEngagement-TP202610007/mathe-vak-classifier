@@ -1,8 +1,8 @@
 """VAK feature schema and inference helpers.
 
 Single source of truth for feature order, label encoding and the JSON response
-contract. Imported by train.py / evaluate.py and mirrored in lambda_function.py
-(which cannot import this module because Lambda ships without pandas).
+contract. Imported by train.py / evaluate.py and mirrored in lambda_function.py,
+which cannot import this module because Lambda ships without pandas.
 """
 
 from __future__ import annotations
@@ -28,14 +28,13 @@ NUMERIC_FEATURES = [
     "total_backtracks",
 ]
 
-# Training labels (as in the CSV) and their display names in the API response.
+# Class labels, as in the CSV and the API response.
 # Index is the encoded class: Visual=0, Auditory=1, Kinesthetic=2.
 VAK_CLASSES = ["Visual", "Auditory", "Kinesthetic"]
-VAK_DISPLAY = ["Visual", "Auditivo", "Kinestesico"]
 
 # Profile type is decided by the gap between the top two class probabilities.
-CLEAR_MARGIN = 0.30   # >= -> "claro"
-MIXED_MARGIN = 0.12   # in [MIXED, CLEAR) -> "tendencia"; below -> "mixto"
+CLEAR_MARGIN = 0.30   # >= -> "clear"
+MIXED_MARGIN = 0.12   # in [MIXED, CLEAR) -> "tendency"; below -> "mixed"
 
 
 def get_feature_columns() -> list[str]:
@@ -102,10 +101,10 @@ def build_feature_vector(raw: dict, scaler: StandardScaler) -> np.ndarray:
 def profile_type(top_prob: float, second_prob: float) -> str:
     gap = top_prob - second_prob
     if gap >= CLEAR_MARGIN:
-        return "claro"
+        return "clear"
     if gap >= MIXED_MARGIN:
-        return "tendencia"
-    return "mixto"
+        return "tendency"
+    return "mixed"
 
 
 def build_response(proba, classifier_type: str = "xgboost") -> dict:
@@ -113,23 +112,23 @@ def build_response(proba, classifier_type: str = "xgboost") -> dict:
     proba = np.asarray(proba, dtype=float)
     order = np.argsort(proba)[::-1]
     top, second = int(order[0]), int(order[1])
-    tipo = profile_type(proba[top], proba[second])
+    profile = profile_type(proba[top], proba[second])
 
-    confianza = {VAK_DISPLAY[i]: round(float(proba[i]) * 100, 2) for i in range(len(VAK_DISPLAY))}
+    confidence = {VAK_CLASSES[i]: round(float(proba[i]) * 100, 2) for i in range(len(VAK_CLASSES))}
     return {
-        "estilo_predominante": VAK_DISPLAY[top],
-        "estilo_secundario": VAK_DISPLAY[second],
-        "confianza": confianza,
-        "confianza_predominante": confianza[VAK_DISPLAY[top]],
-        "tipo_perfil": tipo,
-        "es_perfil_mixto": tipo == "mixto",
-        "clasificador_tipo": classifier_type,
+        "predominant_style": VAK_CLASSES[top],
+        "secondary_style": VAK_CLASSES[second],
+        "confidence": confidence,
+        "predominant_confidence": confidence[VAK_CLASSES[top]],
+        "profile_type": profile,
+        "is_mixed_profile": profile == "mixed",
+        "classifier_type": classifier_type,
     }
 
 
 if __name__ == "__main__":
     here = os.path.dirname(os.path.abspath(__file__))
-    data = load_dataset(os.path.join(here, "data", "dataset_simulado.csv"))
+    data = load_dataset(os.path.join(here, "data", "simulated_dataset.csv"))
     prep = preprocess_training(data)
     print(f"Rows: {len(data)} | Features: {len(prep['feature_columns'])}")
     print(f"X_train: {prep['X_train'].shape} | X_test: {prep['X_test'].shape}")

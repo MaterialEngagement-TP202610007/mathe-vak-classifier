@@ -1,5 +1,5 @@
-# Dependencias del deployment package de AWS Lambda (Python 3.10 runtime).
-# Limite descomprimido: 250MB. xgboost + scikit-learn + numpy caben dentro.
+# AWS Lambda deployment package dependencies (Python 3.10 runtime).
+# Unzipped limit: 250MB; xgboost + scikit-learn + numpy fit within it.
 xgboost>=2.0
 scikit-learn>=1.4
 numpy>=1.26

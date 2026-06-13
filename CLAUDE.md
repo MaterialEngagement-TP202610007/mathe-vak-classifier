@@ -5,11 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 `ml_model/` is the ML module of **Material Engagement** — a beta XGBoost classifier that
-labels a student's learning style as **Visual / Auditivo / Kinestesico** (VAK) from VAK scores
+labels a student's learning style as **Visual / Auditory / Kinesthetic** (VAK) from VAK scores
 plus behavioral signals. It trains on a **simulated** dataset and is meant to be served via
-**AWS Lambda + S3** for an Express.js backend to consume. Code and comments are in **English**;
-user-facing strings in the JSON response (`estilo_predominante`, `tipo_perfil`, etc.) are in
-**Spanish** — keep that split when editing.
+**AWS Lambda + S3** for an Express.js backend to consume. **Everything is in English** — code,
+comments, the request body and the JSON response keys/values. Keep it that way when editing.
 
 The plan/spec lives in the root file
 `notion-Material-Engagement-...md` (the Notion export). When in doubt about scope, phases,
@@ -26,7 +25,7 @@ source venv/bin/activate            # prompt shows (venv); deactivate to exit
 
 python train.py                     # train + serialize to models/
 python train.py --no-smote          # disable SMOTE class balancing
-python train.py --dataset PATH.csv  # train on a CSV elsewhere (default: data/dataset_simulado.csv)
+python train.py --dataset PATH.csv  # train on a CSV elsewhere (default: data/simulated_dataset.csv)
 python evaluate.py                  # metrics + reports/ (loads the saved .pkl; run train.py first)
 python predict_local.py --row N     # predict on row N of the CSV; sanity-checks inference path
 python serve_local.py               # local HTTP server for Postman/curl (POST /predict)
@@ -54,12 +53,12 @@ The pipeline is a straight line: **CSV → preprocess → XGBoost → .pkl artif
   classification report).
 - **`lambda/lambda_function.py`** is the production inference path: downloads artifacts from S3
   (cached in `/tmp` + module globals while warm), scales the incoming feature dict and returns
-  the JSON contract with `clasificador_tipo: "xgboost"`.
+  the JSON contract with `classifier_type: "xgboost"`.
 - **`serve_local.py`** is the same inference path but as a local HTTP server (stdlib only, loads
   from `models/` instead of S3). It exists so the model can be tested in Postman/curl before AWS.
 - **`fallback.py`** is a deliberate non-ML classifier (predominant raw VAK score) returning the
-  same JSON contract with `clasificador_tipo: "puntaje_simple"`. It exists so the backend always
-  has a fallback when Lambda is down. The `clasificador_tipo` field is how callers distinguish
+  same JSON contract with `classifier_type: "simple_score"`. It exists so the backend always
+  has a fallback when Lambda is down. The `classifier_type` field is how callers distinguish
   ML output from fallback output.
 
 ## Feature schema & JSON contract
@@ -77,18 +76,18 @@ values are **English**: `Visual`, `Auditory`, `Kinesthetic`.
   "total_backtracks": 1 } }
 ```
 
-**Response** (`confianza` keys and `estilo_*` use the Spanish display names):
+**Response** (all keys and values in English; styles use the class names):
 
 ```json
-{ "estilo_predominante": "Visual", "estilo_secundario": "Auditivo",
-  "confianza": { "Visual": 91.20, "Auditivo": 7.45, "Kinestesico": 1.35 },
-  "confianza_predominante": 91.20, "tipo_perfil": "claro",
-  "es_perfil_mixto": false, "clasificador_tipo": "xgboost" }
+{ "predominant_style": "Visual", "secondary_style": "Auditory",
+  "confidence": { "Visual": 91.20, "Auditory": 7.45, "Kinesthetic": 1.35 },
+  "predominant_confidence": 91.20, "profile_type": "clear",
+  "is_mixed_profile": false, "classifier_type": "xgboost" }
 ```
 
-`tipo_perfil` is decided by the gap between the top-1 and top-2 class probabilities
-(`preprocess.CLEAR_MARGIN` / `MIXED_MARGIN`): gap ≥ 0.30 → `claro`; 0.12–0.30 → `tendencia`;
-< 0.12 → `mixto` (and `es_perfil_mixto: true`).
+`profile_type` is decided by the gap between the top-1 and top-2 class probabilities
+(`preprocess.CLEAR_MARGIN` / `MIXED_MARGIN`): gap ≥ 0.30 → `clear`; 0.12–0.30 → `tendency`;
+< 0.12 → `mixed` (and `is_mixed_profile: true`).
 
 ## Critical invariants (break these and predictions go silently wrong)
 
@@ -98,10 +97,9 @@ values are **English**: `Visual`, `Auditory`, `Kinesthetic`.
   `build_feature_vector` **and** `build_response` (it can't import `preprocess.py` — Lambda ships
   without pandas). **If you change the feature schema or response logic in `preprocess.py`, mirror
   the exact same change in `lambda_function.py`.**
-- **Two label vocabularies.** Training labels are English (`VAK_CLASSES = Visual / Auditory /
-  Kinesthetic`, the CSV values); the JSON response uses Spanish display names
-  (`VAK_DISPLAY = Visual / Auditivo / Kinestesico`). Index is the encoded class: Visual=0,
-  Auditory=1, Kinesthetic=2.
+- **One label vocabulary.** `VAK_CLASSES = Visual / Auditory / Kinesthetic` are the CSV values
+  and the names used in the JSON response. Index is the encoded class: Visual=0, Auditory=1,
+  Kinesthetic=2. `lambda_function.py` and `fallback.py` re-declare the same `VAK_CLASSES`.
 - **Class encoding is forced by index, not by `LabelEncoder.fit()`** (which would sort
   alphabetically). `preprocess.py` sets `label_encoder.classes_` manually and maps via
   `VAK_CLASSES`. Don't replace this with a plain `.fit()`.
@@ -109,7 +107,7 @@ values are **English**: `Visual`, `Auditory`, `Kinesthetic`.
 
 ## Dataset gotcha (this has bitten the user)
 
-`train.py` reads **`ml_model/data/dataset_simulado.csv`** and nothing else. To train on new
+`train.py` reads **`ml_model/data/simulated_dataset.csv`** and nothing else. To train on new
 data, replace *that exact file* (or pass `--dataset`) — keeping the **same 7 feature columns and
 the same English label values**. If you add/remove/rename a column you must also update
 `NUMERIC_FEATURES` in both `preprocess.py` and `lambda_function.py`. A second copy may exist
@@ -118,7 +116,7 @@ check the distribution line `train.py` prints (`Rows: N | VAK distribution: {...
 `model_metadata.json → n_samples_total`.
 
 Because the simulated data is highly separable (each style has its own score high and the others
-near zero), the model is very confident and rarely outputs `mixto`. The behavioral features
+near zero), the model is very confident and rarely outputs `mixed`. The behavioral features
 (`avg_response_time`, `total_changes`) mainly break ties when the three scores are close.
 
 ## Not in scope here

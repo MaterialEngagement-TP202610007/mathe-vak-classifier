@@ -19,7 +19,7 @@ from preprocess import NUMERIC_FEATURES, build_feature_vector, build_response, l
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(HERE, "models")
-DATA_PATH = os.path.join(HERE, "data", "dataset_simulado.csv")
+DATA_PATH = os.path.join(HERE, "data", "simulated_dataset.csv")
 
 
 def main():

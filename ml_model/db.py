@@ -1,18 +1,12 @@
-"""
-db.py
-=====
-Utilidades de conexion a PostgreSQL (Notion - Fase 1: "Verificar conexion a
-PostgreSQL desde el script Python" y HU-39: almacenar resultados en BD).
+"""Optional PostgreSQL helper.
 
-NO genera el dataset (ya existe en data/dataset_simulado.csv). Provee:
-  - test_connection(): verifica conectividad.
-  - load_csv_to_table(): carga el CSV existente en la tabla ml_dataset (opcional).
+Verifies connectivity and optionally loads the existing CSV into a table. It does
+not generate the dataset. Configured via .env: PG_HOST, PG_PORT, PG_DATABASE,
+PG_USER, PG_PASSWORD, PG_TABLE.
 
-Configuracion via .env: PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD, PG_TABLE.
-
-Uso:
-    python db.py --check          # verifica conexion
-    python db.py --load-dataset   # carga el CSV existente en la tabla
+Usage:
+    python db.py --check          # check connection
+    python db.py --load-dataset   # load the existing CSV into the table
 """
 
 from __future__ import annotations
@@ -26,7 +20,7 @@ from dotenv import load_dotenv
 HERE = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(HERE, ".env"))
 
-DATA_PATH = os.path.join(HERE, "data", "dataset_simulado.csv")
+DATA_PATH = os.path.join(HERE, "data", "simulated_dataset.csv")
 
 
 def _conn_params():
@@ -52,26 +46,26 @@ def test_connection() -> bool:
             cur.execute("SELECT version();")
             version = cur.fetchone()[0]
         conn.close()
-        print(f"Conexion OK -> {version}")
+        print(f"Connection OK -> {version}")
         return True
-    except Exception as exc:  # noqa: BLE001
-        print(f"[ERROR] No se pudo conectar a PostgreSQL: {exc}")
+    except Exception as exc:
+        print(f"[ERROR] Could not connect to PostgreSQL: {exc}")
         return False
 
 
 def load_csv_to_table():
-    """Carga el dataset existente en la tabla PG_TABLE (crea la tabla si no existe)."""
+    """Load the existing dataset into PG_TABLE, creating the table if needed."""
     import csv
 
     table = os.environ.get("PG_TABLE", "ml_dataset")
     if not os.path.exists(DATA_PATH):
-        print(f"[ERROR] No existe el dataset: {DATA_PATH}")
+        print(f"[ERROR] Dataset not found: {DATA_PATH}")
         return
 
     with open(DATA_PATH, newline="", encoding="utf-8") as fh:
         header = next(csv.reader(fh))
 
-    # Tipos: las columnas de texto conocidas como TEXT, el resto NUMERIC.
+    # Known text columns map to TEXT, the rest to NUMERIC.
     text_cols = {
         "options_selection", "preferred_content_type", "navigation_sequence",
         "academic_grade", "target_vak_label",
@@ -93,13 +87,13 @@ def load_csv_to_table():
         cur.execute(f'SELECT COUNT(*) FROM "{table}";')
         n = cur.fetchone()[0]
     conn.close()
-    print(f"Cargados {n} registros en la tabla '{table}'.")
+    print(f"Loaded {n} rows into table '{table}'.")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Utilidades PostgreSQL del modulo ML.")
-    parser.add_argument("--check", action="store_true", help="Verifica la conexion.")
-    parser.add_argument("--load-dataset", action="store_true", help="Carga el CSV en la tabla.")
+    parser = argparse.ArgumentParser(description="PostgreSQL helper for the ML module.")
+    parser.add_argument("--check", action="store_true", help="Check the connection.")
+    parser.add_argument("--load-dataset", action="store_true", help="Load the CSV into the table.")
     args = parser.parse_args()
 
     if not (args.check or args.load_dataset):

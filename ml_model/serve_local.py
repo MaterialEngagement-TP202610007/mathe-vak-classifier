@@ -27,7 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import joblib
 
-from preprocess import NUMERIC_FEATURES, VAK_DISPLAY, build_feature_vector, build_response
+from preprocess import NUMERIC_FEATURES, VAK_CLASSES, build_feature_vector, build_response
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(HERE, "models")
@@ -66,17 +66,17 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.rstrip("/") in ("", "/predict"):
             self._send(200, {
                 "status": "ok",
-                "modelo": _META["model_file"],
-                "clases": VAK_DISPLAY,
+                "model": _META["model_file"],
+                "classes": VAK_CLASSES,
                 "features": NUMERIC_FEATURES,
                 "hint": "POST to /predict with the features in the JSON body.",
             })
         else:
-            self._send(404, {"error": "ruta_no_encontrada", "path": self.path})
+            self._send(404, {"error": "route_not_found", "path": self.path})
 
     def do_POST(self):
         if self.path.rstrip("/") != "/predict":
-            self._send(404, {"error": "ruta_no_encontrada", "path": self.path})
+            self._send(404, {"error": "route_not_found", "path": self.path})
             return
 
         length = int(self.headers.get("Content-Length", 0))
@@ -84,19 +84,19 @@ class Handler(BaseHTTPRequestHandler):
         try:
             data = json.loads(raw_body or b"{}")
         except json.JSONDecodeError as exc:
-            self._send(400, {"error": "json_invalido", "detail": str(exc)})
+            self._send(400, {"error": "invalid_json", "detail": str(exc)})
             return
 
         raw = data.get("features", data)
         missing = [c for c in NUMERIC_FEATURES if c not in raw]
         if missing:
-            self._send(400, {"error": "features_faltantes", "missing": missing})
+            self._send(400, {"error": "missing_features", "missing": missing})
             return
 
         try:
             self._send(200, _predict(raw))
-        except Exception as exc:  # noqa: BLE001
-            self._send(500, {"error": "error_prediccion", "detail": str(exc)})
+        except Exception as exc:
+            self._send(500, {"error": "prediction_error", "detail": str(exc)})
 
     def log_message(self, fmt, *args):
         print(f"  {self.address_string()} - {fmt % args}")
