@@ -2,14 +2,16 @@
 
 Same 7 inputs as vak_model_v1.pkl (scores included, same names and order), same classes
 (Visual=0, Auditory=1, Kinesthetic=2), same scaler.pkl, plain XGBClassifier with
-predict_proba. Label: argmax of the three scores (ties dropped). Hyperparameters are the
+predict_proba. The booster is also exported in XGBoost's native JSON format, which is
+what the sklearn-free Lambda loads. Label: argmax of the three scores (ties dropped). Hyperparameters are the
 same as real_v2. CV is reported only as concordance with the declared preference.
 
 Usage:
     python train_prod_real.py [--data path/resultados.csv]
 
 Outputs (aggregates only, no rows or ids):
-    models/vak_model_v2.pkl, models/model_metadata_v2.json, reports/metrics_v2_prod.json
+    models/vak_model_v2.pkl, models/vak_model_v2.json, models/model_metadata_v2.json,
+    reports/metrics_v2_prod.json
 The source CSV contains personal data of minors and must never be committed.
 """
 
@@ -24,6 +26,7 @@ from datetime import datetime, timezone
 import joblib
 import numpy as np
 import pandas as pd
+import xgboost as xgb
 from imblearn.over_sampling import SMOTE
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import StratifiedKFold
@@ -52,6 +55,8 @@ XGB_PARAMS = dict(
 MODELS_DIR = os.path.join(HERE, "models")
 REPORTS_DIR = os.path.join(HERE, "reports")
 MODEL_FILE = "vak_model_v2.pkl"
+BOOSTER_FILE = "vak_model_v2.json"
+SCALER_PARAMS_FILE = "scaler_params.json"
 K_FOLDS = 5
 
 # Backend payload mapping (complete-questionnaire.use-case.ts): CSV column -> model feature.
@@ -85,12 +90,18 @@ def fit(X, y):
     return XGBClassifier(**XGB_PARAMS).fit(Xs, ys)
 
 
-def compat_check(model_path: str):
-    """Load like the Lambda (joblib model + scaler.pkl) and run the real handler on a fake payload."""
+def compat_check(booster_path: str):
+    """Load like the Lambda (booster JSON + scaler_params.json) and run the real handler on a fake payload."""
     sys.path.insert(0, os.path.join(HERE, "lambda"))
     import lambda_function as lf
-    lf._MODEL = joblib.load(model_path)
-    lf._SCALER = joblib.load(os.path.join(MODELS_DIR, "scaler.pkl"))
+    booster = xgb.Booster()
+    booster.load_model(booster_path)
+    with open(os.path.join(MODELS_DIR, SCALER_PARAMS_FILE), encoding="utf-8") as fh:
+        params = json.load(fh)
+    assert params["features"] == lf.NUMERIC_FEATURES, "scaler_params.json feature order differs from Lambda"
+    lf._MEAN = np.asarray(params["mean"], dtype=float)
+    lf._SCALE = np.asarray(params["scale"], dtype=float)
+    lf._BOOSTER = booster
     event = {"body": json.dumps({"features": {
         "visual_score": 6, "auditory_score": 3, "kinesthetic_score": 1, "response_consistency": 0.4,
         "avg_response_time": 21.5, "total_changes": 2, "total_backtracks": 1}})}
@@ -127,9 +138,11 @@ def main():
     model = fit(X, y)
     model_path = os.path.join(MODELS_DIR, MODEL_FILE)
     joblib.dump(model, model_path)
+    booster_path = os.path.join(MODELS_DIR, BOOSTER_FILE)
+    model.get_booster().save_model(booster_path)
 
     meta = {
-        "model_version": "v2", "model_file": MODEL_FILE,
+        "model_version": "v2", "model_file": MODEL_FILE, "booster_file": BOOSTER_FILE,
         "trained_at": datetime.now(timezone.utc).isoformat(),
         "data": "piloto institucional, resultados.csv rows with classifierType=xgboost",
         "label": "argmax(visual_score, auditory_score, kinesthetic_score); ties dropped",
@@ -145,7 +158,7 @@ def main():
                                          "n_final", "class_distribution", "cv_metrics", "note")},
                   f, indent=2, ensure_ascii=False)
 
-    compat_check(model_path)
+    compat_check(booster_path)
 
 
 if __name__ == "__main__":
