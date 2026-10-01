@@ -25,6 +25,10 @@ MODELS_DIR = os.path.join(HERE, "models")
 MODEL_VERSION = os.environ.get("MODEL_VERSION", "v1")
 MODEL_FILE = f"vak_model_{MODEL_VERSION}.pkl"
 
+# Serialized without scikit-learn, for the Lambda inference path.
+BOOSTER_FILE = f"vak_model_{MODEL_VERSION}.json"
+SCALER_PARAMS_FILE = "scaler_params.json"
+
 XGB_PARAMS = dict(
     n_estimators=180,
     max_depth=4,
@@ -97,9 +101,25 @@ def main():
     joblib.dump(scaler, os.path.join(MODELS_DIR, "scaler.pkl"))
     joblib.dump(label_encoder, os.path.join(MODELS_DIR, "label_encoder.pkl"))
 
+    # Inference artifacts for Lambda. The deployment package cannot ship
+    # scikit-learn (it would exceed the 250MB unzipped limit), so the booster
+    # goes out in XGBoost's native format and the scaler as plain mean/scale
+    # vectors. See verify_parity.py for the equivalence check.
+    model.get_booster().save_model(os.path.join(MODELS_DIR, BOOSTER_FILE))
+
+    scaler_params = {
+        "features": feature_columns,
+        "mean": scaler.mean_.tolist(),
+        "scale": scaler.scale_.tolist(),
+    }
+    with open(os.path.join(MODELS_DIR, SCALER_PARAMS_FILE), "w", encoding="utf-8") as fh:
+        json.dump(scaler_params, fh, indent=2)
+
     metadata = {
         "model_version": MODEL_VERSION,
         "model_file": MODEL_FILE,
+        "booster_file": BOOSTER_FILE,
+        "scaler_params_file": SCALER_PARAMS_FILE,
         "trained_at": datetime.now(timezone.utc).isoformat(),
         "algorithm": "XGBoost (XGBClassifier)",
         "objective": XGB_PARAMS["objective"],

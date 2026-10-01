@@ -1,7 +1,22 @@
-# Dependencias del deployment package de AWS Lambda (Python 3.10 runtime).
-# Limite descomprimido: 250MB. xgboost + scikit-learn + numpy caben dentro.
-xgboost>=2.0
-scikit-learn>=1.4
-numpy>=1.26
-joblib>=1.3
-boto3>=1.34
+# Dependencies of the AWS Lambda deployment package (Python 3.12 runtime).
+#
+# Unzipped limit is 250MB. scikit-learn and joblib are deliberately NOT here:
+# together with xgboost/numpy/scipy they push the package to ~256MB, which AWS
+# rejects. The handler loads the booster in XGBoost's native JSON format and
+# applies the scaler as raw arithmetic instead. See verify_parity.py.
+#
+# boto3 is NOT here either: the Lambda Python runtime already provides it.
+#
+# Versions are PINNED to the ones that serialized models/ — a booster JSON is
+# portable across versions, but pinning removes the question entirely. If you
+# retrain with different versions, rebuild this package to match.
+#
+# Build (from ml_model/, on any host):
+#   pip install --platform manylinux2014_x86_64 --implementation cp \
+#     --python-version 3.12 --only-binary=:all: --target lambda/build \
+#     -r lambda/requirements.txt
+
+xgboost==2.1.4
+numpy==2.0.2
+# scipy is pulled in by xgboost (xgboost/core.py imports scipy.sparse at module
+# level, unconditionally) — it cannot be excluded.

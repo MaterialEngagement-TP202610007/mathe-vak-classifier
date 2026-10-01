@@ -36,7 +36,9 @@ REGION = os.environ.get("AWS_REGION", "us-east-1")
 
 ARTIFACTS = [
     f"vak_model_{MODEL_VERSION}.pkl",
+    f"vak_model_{MODEL_VERSION}.json",  # booster loaded by Lambda (no sklearn)
     "scaler.pkl",
+    "scaler_params.json",               # mean/scale loaded by Lambda (no sklearn)
     "label_encoder.pkl",
     "model_metadata.json",
 ]
@@ -105,7 +107,8 @@ def main():
     print("\nUpload completado. Configura en Lambda:")
     print(f"  S3_BUCKET={BUCKET}")
     print(f"  S3_PREFIX={PREFIX}")
-    print(f"  MODEL_FILE=vak_model_{MODEL_VERSION}.pkl")
+    print(f"  MODEL_FILE=vak_model_{MODEL_VERSION}.json")
+    print("  SCALER_FILE=scaler_params.json")
 
 
 if __name__ == "__main__":
