@@ -19,3 +19,15 @@ ml_model/lambda/build/
 .DS_Store
 .claude/
 .atl/
+
+# Datos reales de alumnos (menores de edad) - NUNCA subir
+mathe-export-*/
+*.zip
+datos/
+OneDrive_*/
+
+# Cualquier CSV/Excel salvo el dataset sintetico versionado
+*.csv
+!ml_model/data/dataset_simulado.csv
+*.xlsx
+*.xls

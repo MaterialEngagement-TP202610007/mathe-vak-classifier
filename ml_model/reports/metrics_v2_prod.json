@@ -1,0 +1,24 @@
+{
+  "model_version": "v2",
+  "trained_at": "2026-10-01T02:10:01.128537+00:00",
+  "n_rows_xgboost": 174,
+  "n_ties_dropped": 26,
+  "n_final": 148,
+  "class_distribution": {
+    "Visual": 44,
+    "Auditory": 50,
+    "Kinesthetic": 54
+  },
+  "cv_metrics": {
+    "scheme": "StratifiedKFold(k=5, shuffle=True, random_state=42), SMOTE inside train folds",
+    "accuracy": {
+      "mean": 1.0,
+      "sd": 0.0
+    },
+    "f1_macro": {
+      "mean": 1.0,
+      "sd": 0.0
+    }
+  },
+  "note": "Las metricas miden concordancia con la preferencia declarada por el\nestudiante (puntaje directo), no capacidad predictiva independiente. La\nevaluacion predictiva con variables de comportamiento esta en real_v2."
+}
