@@ -1,7 +1,9 @@
 {
   "model_version": "v1",
   "model_file": "vak_model_v1.pkl",
-  "trained_at": "2026-06-10T03:27:42.486017+00:00",
+  "booster_file": "vak_model_v1.json",
+  "scaler_params_file": "scaler_params.json",
+  "trained_at": "2026-09-10T07:02:57.617811+00:00",
   "algorithm": "XGBoost (XGBClassifier)",
   "objective": "multi:softprob",
   "hyperparameters": {

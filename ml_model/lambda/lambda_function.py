@@ -1,13 +1,21 @@
 """AWS Lambda VAK inference handler.
 
-Cold start downloads the model, scaler and label encoder from S3 (cached in /tmp
-and module globals while warm). Each POST parses the feature dict, scales it,
-predicts and returns the JSON contract with per-class confidence and profile type.
+Cold start downloads the booster and the scaler parameters from S3 (cached in
+/tmp and module globals while warm). Each POST parses the feature dict, scales
+it, predicts and returns the JSON contract with per-class confidence and profile
+type.
+
+The deployment package ships neither scikit-learn nor joblib: together they push
+the unzipped package past Lambda's 250MB limit. Instead the model travels in
+XGBoost's native JSON format and the StandardScaler as plain mean/scale vectors,
+applied here as (x - mean) / scale. verify_parity.py proves the two paths agree.
 
 CRITICAL: feature order and the response logic below must stay byte-identical to
 preprocess.py. Lambda cannot import preprocess.py (no pandas in the package).
+The feature order is checked against scaler_params.json at load time, so a
+divergence fails loudly instead of silently mispredicting.
 
-Env vars: S3_BUCKET, S3_PREFIX, MODEL_FILE.
+Env vars: S3_BUCKET, S3_PREFIX, MODEL_FILE, SCALER_FILE.
 """
 
 from __future__ import annotations
@@ -16,8 +24,8 @@ import json
 import os
 
 import boto3
-import joblib
 import numpy as np
+import xgboost as xgb
 
 NUMERIC_FEATURES = [
     "visual_score",
@@ -36,10 +44,12 @@ MIXED_MARGIN = 0.12
 
 S3_BUCKET = os.environ.get("S3_BUCKET", "material-engagement-models")
 S3_PREFIX = os.environ.get("S3_PREFIX", "vak/v1").strip("/")
-MODEL_FILE = os.environ.get("MODEL_FILE", "vak_model_v1.pkl")
+MODEL_FILE = os.environ.get("MODEL_FILE", "vak_model_v1.json")
+SCALER_FILE = os.environ.get("SCALER_FILE", "scaler_params.json")
 
-_MODEL = None
-_SCALER = None
+_BOOSTER = None
+_MEAN = None
+_SCALE = None
 
 
 def _download(s3, filename):
@@ -51,17 +61,30 @@ def _download(s3, filename):
 
 
 def _load_artifacts():
-    global _MODEL, _SCALER
-    if _MODEL is not None:
+    global _BOOSTER, _MEAN, _SCALE
+    if _BOOSTER is not None:
         return
     s3 = boto3.client("s3")
-    _MODEL = joblib.load(_download(s3, MODEL_FILE))
-    _SCALER = joblib.load(_download(s3, "scaler.pkl"))
+
+    booster = xgb.Booster()
+    booster.load_model(_download(s3, MODEL_FILE))
+
+    with open(_download(s3, SCALER_FILE), encoding="utf-8") as fh:
+        params = json.load(fh)
+    if params["features"] != NUMERIC_FEATURES:
+        raise ValueError(
+            f"feature order mismatch: {SCALER_FILE} has {params['features']}, "
+            f"handler expects {NUMERIC_FEATURES}"
+        )
+
+    _MEAN = np.asarray(params["mean"], dtype=float)
+    _SCALE = np.asarray(params["scale"], dtype=float)
+    _BOOSTER = booster
 
 
 def build_feature_vector(raw: dict) -> np.ndarray:
     numeric = np.array([float(raw[col]) for col in NUMERIC_FEATURES], dtype=float)
-    return _SCALER.transform(numeric.reshape(1, -1))
+    return ((numeric - _MEAN) / _SCALE).reshape(1, -1)
 
 
 def build_response(proba) -> dict:
@@ -113,7 +136,7 @@ def lambda_handler(event, context):
         if missing:
             return _response(400, {"error": "features_faltantes", "missing": missing})
 
-        proba = _MODEL.predict_proba(build_feature_vector(raw))[0]
+        proba = _BOOSTER.predict(xgb.DMatrix(build_feature_vector(raw)))[0]
         return _response(200, build_response(proba))
     except Exception as exc:  # noqa: BLE001
         return _response(500, {"error": "error_prediccion", "detail": str(exc)})
