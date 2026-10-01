@@ -1,0 +1,58 @@
+{
+  "model_version": "v2",
+  "model_file": "vak_model_v2.pkl",
+  "trained_at": "2026-10-01T02:10:01.128537+00:00",
+  "data": "piloto institucional, resultados.csv rows with classifierType=xgboost",
+  "label": "argmax(visual_score, auditory_score, kinesthetic_score); ties dropped",
+  "n_rows_xgboost": 174,
+  "n_ties_dropped": 26,
+  "n_final": 148,
+  "class_distribution": {
+    "Visual": 44,
+    "Auditory": 50,
+    "Kinesthetic": 54
+  },
+  "feature_columns": [
+    "visual_score",
+    "auditory_score",
+    "kinesthetic_score",
+    "response_consistency",
+    "avg_response_time",
+    "total_changes",
+    "total_backtracks"
+  ],
+  "n_features": 7,
+  "classes": [
+    "Visual",
+    "Auditory",
+    "Kinesthetic"
+  ],
+  "scaler": "scaler.pkl from v1 (unchanged, transform only)",
+  "smote": "applied to full set for final fit",
+  "hyperparameters": {
+    "n_estimators": 150,
+    "max_depth": 3,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 1.0,
+    "min_child_weight": 3,
+    "reg_lambda": 1.0,
+    "objective": "multi:softprob",
+    "num_class": 3,
+    "eval_metric": "mlogloss",
+    "random_state": 42,
+    "n_jobs": 1
+  },
+  "cv_metrics": {
+    "scheme": "StratifiedKFold(k=5, shuffle=True, random_state=42), SMOTE inside train folds",
+    "accuracy": {
+      "mean": 1.0,
+      "sd": 0.0
+    },
+    "f1_macro": {
+      "mean": 1.0,
+      "sd": 0.0
+    }
+  },
+  "note": "Las metricas miden concordancia con la preferencia declarada por el\nestudiante (puntaje directo), no capacidad predictiva independiente. La\nevaluacion predictiva con variables de comportamiento esta en real_v2."
+}

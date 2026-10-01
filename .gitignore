@@ -17,3 +17,15 @@ ml_model/lambda/lambda_deployment.zip
 # macOS / herramientas
 .DS_Store
 .claude/
+
+# Datos reales de alumnos (menores de edad) - NUNCA subir
+mathe-export-*/
+*.zip
+datos/
+OneDrive_*/
+
+# Cualquier CSV/Excel salvo el dataset sintetico versionado
+*.csv
+!ml_model/data/dataset_simulado.csv
+*.xlsx
+*.xls
