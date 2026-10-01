@@ -10,6 +10,7 @@ ml_model/.env
 # Lambda deployment artifacts
 ml_model/lambda/package/
 ml_model/lambda/lambda_deployment.zip
+ml_model/lambda/build/
 
 # Notebooks
 .ipynb_checkpoints/
@@ -17,3 +18,4 @@ ml_model/lambda/lambda_deployment.zip
 # macOS / herramientas
 .DS_Store
 .claude/
+.atl/
